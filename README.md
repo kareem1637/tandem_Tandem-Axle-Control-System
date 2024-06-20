@@ -28,7 +28,7 @@ Clone the Repository:
 
 bash
 Copy code
-git clone https://github.com/your_username/tandem-axle-control.git
+git clone https://github.com/kareem1637/tandem-axle-control.git
 Open in Arduino IDE:
 
 Launch Arduino IDE.
