@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Camera and Motor Control</title>
+    <script src="static/lib/jquery-3.7.1.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+        }
+        .tabs {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .tabs button {
+            background-color: #555;
+            color: white;
+            cursor: pointer;
+            padding: 10px 20px;
+            border: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        .tabs button:hover {
+            background-color: #777;
+        }
+        .tab {
+            display: none;
+        }
+        .tab.active {
+            display: block;
+        }
+        #video_frame {
+            width: 100%;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #f50000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #video_frame img {
+            max-width: 100%;
+            height: auto;
+        }
+        fieldset {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        legend {
+            padding: 0 10px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #4CAF50;
+            color: #ffffff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Camera and Motor Control</h1>
+
+    <div class="tabs">
+        <button onclick="openTab('tandem-controls')">Tandem Controls</button>
+        <button onclick="openTab('calibration')">Calibration</button>
+        <button onclick="openTab('mqtt-settings')">MQTT Settings</button>
+    </div>
+
+    <div id="tandem-controls" class="tab active">
+        <div id="video_frame">
+            <!-- Embedded video feed from ESP32-CAM -->
+            <img src="{{ url_for('video_feed') }}" alt="ESP32 Camera Feed" width="640" height="480">
+        </div>
+
+        <fieldset>
+            <legend>Tandem Controls</legend>
+            <div style="display: flex; justify-content: space-between;">
+                <fieldset style="width: 45%; margin: 10px;">
+                    <legend>Front</legend>
+                    <fieldset>
+                        <legend>Motor Control</legend>
+                        <button onclick="controlMotor('forward', '1')">Forward</button>
+                        <button onclick="controlMotor('backward', '1')">Backward</button>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Servo Control</legend>
+                        <button onclick="controlServo('left', '1')">Left</button>
+                        <button onclick="controlServo('right', '1')">Right</button>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Pin Control</legend>
+                        <button onclick="lockPin('1')">Lock Pin</button>
+                        <button onclick="unlockPin('1')">Unlock Pin</button>
+                    </fieldset>
+                </fieldset>
+                <fieldset style="width: 45%; margin: 10px;">
+                    <legend>Rear</legend>
+                    <fieldset>
+                        <legend>Motor Control</legend>
+                        <button onclick="controlMotor('forward', '2')">Forward</button>
+                        <button onclick="controlMotor('backward', '2')">Backward</button>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Servo Control</legend>
+                        <button onclick="controlServo('left', '2')">Left</button>
+                        <button onclick="controlServo('right', '2')">Right</button>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Pin Control</legend>
+                        <button onclick="lockPin('2')">Lock Pin</button>
+                        <button onclick="unlockPin('2')">Unlock Pin</button>
+                    </fieldset>
+                </fieldset>
+            </div>
+        </fieldset>
+    </div>
+
+    <div id="calibration" class="tab">
+        <div style="display: flex; justify-content: space-between;">
+            <div>
+                <h3>Steer Axle Calibration</h3>
+                <form id="front_steer_tare_form">
+                    <input type="hidden" name="esp" value="1">
+                    <input type="hidden" name="type" value="steer">
+                    <button type="button" onclick="tare()">Tare</button>
+                </form>
+                <form id="front_steer_calibrate_form">
+                    <input type="hidden" name="esp" value="1">
+                    <input type="hidden" name="type" value="steer">
+                    <label for="known_weight_front_steer">Known Weight:</label>
+                    <input type="text" id="known_weight_front_steer" name="known_weight" required>
+                    <button type="button" onclick="calibrate()">Calibrate</button>
+                </form>
+            </div>
+            <div>
+                <h3>Drive Axle Calibration</h3>
+                <form id="front_drive_tare_form">
+                    <input type="hidden" name="esp" value="1">
+                    <input type="hidden" name="type" value="drive">
+                    <button type="button" onclick="tare()">Tare</button>
+                </form>
+                <form id="front_drive_calibrate_form">
+                    <input type="hidden" name="esp" value="1">
+                    <input type="hidden" name="type" value="drive">
+                    <label for="known_weight_front_drive">Known Weight:</label>
+                    <input type="text" id="known_weight_front_drive" name="known_weight" required>
+                    <button type="button" onclick="calibrate()">Calibrate</button>
+                </form>
+            </div>
+            <div>
+                <h3>Tandem Calibration</h3>
+                <form id="Tandem_tare_form">
+                    <input type="hidden" name="esp" value="2">
+                    <input type="hidden" name="type" value="tandem">
+                    <button type="button" onclick="tare()">Tare</button>
+                </form>
+                <form id="Tandem_calibrate_form">
+                    <input type="hidden" name="esp" value="2">
+                    <input type="hidden" name="type" value="tandem">
+                    <label for="known_weight_Tandem">Known Weight:</label>
+                    <input type="text" id="known_weight_Tandem" name="known_weight" required>
+                    <button type="button" onclick="calibrate()">Calibrate</button>
+                </form>
+            </div>
+        </div>
+        <p id="calibration_result"></p>
+    </div>
+
+    <div id="mqtt-settings" class="tab">
+        <fieldset>
+            <legend>MQTT Server Settings</legend>
+            <form id="mqtt_settings_form">
+                <label for="mqtt_server_ip">MQTT Server IP:</label>
+                <input type="text" id="mqtt_server_ip" name="mqtt_server_ip" value=""><br><br>
+                <button type="button" onclick="saveMqttSettings()">Save</button>
+            </form>
+        </fieldset>
+    </div>
+
+    <script>
+        function openTab(tabId) {
+            $('.tab').removeClass('active');
+            $('#' + tabId).addClass('active');
+        }
+
+        function calibrate() {
+            var type = document.getElementById("calibration_type").value;
+            var weight = document.getElementById("calibration_weight").value;
+            var esp = (type === 'drive') ? '1' : '2';  // Determine ESP based on type
+            var url = `/calibrate?esp=${esp}&type=${type}&weight=${weight}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                    alert('Calibration completed.');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to perform calibration.');
+                });
+        }
+
+        function tare() {
+            var type = document.getElementById("tare_type").value;
+            var esp = (type === 'drive') ? '1' : '2';  // Determine ESP based on type
+            var url = `/tare?esp=${esp}&type=${type}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                    alert('Tare completed. Now place a known weight.');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to perform tare operation.');
+                });
+        }
+
+        function controlMotor(direction, esp) {
+            var url = `/motor?esp=${esp}&direction=${direction}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function controlServo(direction, esp) {
+            var url = `/servo?esp=${esp}&direction=${direction}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function lockPin(esp) {
+            var url = `/lock?esp=${esp}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function unlockPin(esp) {
+            var url = `/unlock?esp=${esp}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log(data);  // Log the response from ESP32
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function saveMqttSettings() {
+            var mqttServerIP = document.getElementById("mqtt_server_ip").value;
+            var url = "/set_ip";
+            var formData = new FormData();
+            formData.append('ip_address', mqttServerIP);
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(data => {
+                console.log(data);  // Log the response from Flask server
+                alert('MQTT Server IP address updated successfully!');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update MQTT Server IP address.');
+            });
+        }
+    </script>
+</body>
+</html>
+
